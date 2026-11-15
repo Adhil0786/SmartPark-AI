@@ -35,3 +35,18 @@ Thumbs.db
 .idea/
 *.swp
 *~
+# PKLot dataset - keep locally, do not upload
+dataset/sample/
+dataset/raw/
+dataset/processed/
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+.venv/
+
+# Generated reports
+reports/generated/
