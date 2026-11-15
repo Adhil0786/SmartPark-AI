@@ -209,3 +209,4 @@ The system works directly with the **PKLot** benchmark:
 - **UFPR05**: Federal University of Paraná (40 slots, top-right perspective)
 - **PUCPR**: Pontifical Catholic University of Paraná (100 slots, high-altitude wide view)
 - **Conditions**: Sunny, Cloudy, Rainy frames taken across different times of day.
+# SmartPark-AI
