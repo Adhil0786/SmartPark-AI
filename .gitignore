@@ -1,0 +1,37 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.env
+
+# Raw Large PKLot Dataset (6.6 GB) - excluded from Git
+dataset/raw/
+*.tar.gz
+*.zip
+
+# Python Bytecode and Caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Ultralytics & Streamlit Runtime
+/tmp/ultralytics/
+/tmp/matplotlib/
+.streamlit/secrets.toml
+
+# OS Artifacts
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
+*~

@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPark AI Polygon Editor</title>
+    <style>
+        :root {
+            --bg-color: #070F2B;
+            --panel-bg: #0B192C;
+            --border-color: #1E3E62;
+            --accent-blue: #007BFF;
+            --accent-green: #10B981;
+            --accent-red: #EF4444;
+            --accent-amber: #F59E0B;
+            --text-main: #FFFFFF;
+            --text-muted: #94A3B8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+            padding: 10px;
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            gap: 10px;
+        }
+
+        .tool-group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button {
+            background: #1E3E62;
+            color: #FFFFFF;
+            border: 1px solid #2E5A88;
+            border-radius: 6px;
+            padding: 7px 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover {
+            background: #2A527A;
+            border-color: #3B72A8;
+        }
+
+        button.active {
+            background: var(--accent-blue);
+            border-color: #389BFF;
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.4);
+        }
+
+        button.btn-save {
+            background: var(--accent-green);
+            border-color: #059669;
+        }
+
+        button.btn-save:hover {
+            background: #059669;
+        }
+
+        button.btn-danger {
+            background: #7F1D1D;
+            border-color: #991B1B;
+        }
+
+        button.btn-danger:hover {
+            background: var(--accent-red);
+        }
+
+        .status-badge {
+            background: #132438;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            color: #E2E8F0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            background: #020617;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            cursor: crosshair;
+        }
+
+        .instructions-panel {
+            background: rgba(11, 25, 44, 0.85);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 14px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .key-badge {
+            background: #1E3E62;
+            color: #E2E8F0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.72rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <!-- TOP TOOLBAR -->
+        <div class="toolbar">
+            <div class="tool-group">
+                <button id="btn-select" class="active" title="Drag corner handles or move whole bays">
+                    🖐️ Move / Edit Points
+                </button>
+                <button id="btn-draw" title="Click 4 corner points to define a new parking space">
+                    ➕ Add Bay (4 Points)
+                </button>
+                <button id="btn-delete" class="btn-danger" title="Delete currently selected bay">
+                    🗑️ Delete Selected
+                </button>
+                <button id="btn-reset-template" title="Reset to standard 2-row perspective template">
+                    📐 2-Row Template
+                </button>
+                <button id="btn-clear" title="Clear all bays">
+                    🧹 Clear All
+                </button>
+            </div>
+
+            <div class="tool-group">
+                <div class="status-badge">
+                    <span class="status-dot" id="status-dot"></span>
+                    <span id="status-text">10 Bays Mapped</span>
+                </div>
+                <button id="btn-save" class="btn-save" title="Save current bay polygons to SmartPark AI">
+                    💾 Save Layout
+                </button>
+            </div>
+        </div>
+
+        <!-- CANVAS WORKSPACE -->
+        <div class="canvas-wrapper" id="canvas-wrapper">
+            <canvas id="editor-canvas"></canvas>
+        </div>
+
+        <!-- INSTRUCTIONS -->
+        <div class="instructions-panel">
+            <div>
+                💡 <b>How to Edit:</b> Drag the circular corner handles to align with painted divider lines. Click inside a bay to select or drag it.
+            </div>
+            <div>
+                <span class="key-badge">4-Point Quadrilateral</span> Perspective-aware & scale-invariant
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Streamlit Component Protocol Implementation
+        function sendMessageToStreamlitClient(type, data) {
+            const outData = Object.assign({
+                isStreamlitMessage: true,
+                type: type,
+            }, data);
+            window.parent.postMessage(outData, "*");
+        }
+
+        function initStreamlit() {
+            sendMessageToStreamlitClient("streamlit:componentReady", { apiVersion: 1 });
+        }
+
+        function setComponentValue(value) {
+            sendMessageToStreamlitClient("streamlit:setComponentValue", { value: value });
+        }
+
+        function updateFrameHeight() {
+            const h = document.body.scrollHeight + 15;
+            sendMessageToStreamlitClient("streamlit:setFrameHeight", { height: h });
+        }
+
+        // Global State
+        const canvas = document.getElementById("editor-canvas");
+        const ctx = canvas.getContext("2d");
+        const statusText = document.getElementById("status-text");
+        const statusDot = document.getElementById("status-dot");
+        const btnSelect = document.getElementById("btn-select");
+        const btnDraw = document.getElementById("btn-draw");
+        const btnDelete = document.getElementById("btn-delete");
+        const btnResetTemplate = document.getElementById("btn-reset-template");
+        const btnClear = document.getElementById("btn-clear");
+        const btnSave = document.getElementById("btn-save");
+
+        let bgImage = new Image();
+        let imageLoaded = false;
+        let mode = "select"; // "select" or "draw"
+
+        // Normalized bays: [{ id: "BAY_1", points: [[nx1, ny1], [nx2, ny2], [nx3, ny3], [nx4, ny4]] }]
+        let bays = [];
+        let drawPoints = []; // In-progress points when mode === 'draw'
+
+        let selectedBayIndex = -1;
+        let draggingPoint = null; // { bayIndex: int, pointIndex: int }
+        let draggingBay = null;   // { bayIndex: int, startMouse: [x, y], originalPoints: [[x,y],...] }
+        let hoveredHandle = null; // { bayIndex: int, pointIndex: int }
+
+        const HANDLE_RADIUS = 7;
+        const HANDLE_HOVER_RADIUS = 10;
+
+        // Default 2-row perspective template
+        function getDefault2RowTemplate() {
+            return [
+                // Upper row (distant)
+                { id: "BAY_1", points: [[0.06, 0.30], [0.22, 0.29], [0.21, 0.44], [0.05, 0.45]] },
+                { id: "BAY_2", points: [[0.24, 0.29], [0.40, 0.28], [0.39, 0.44], [0.23, 0.44]] },
+                { id: "BAY_3", points: [[0.42, 0.28], [0.58, 0.28], [0.57, 0.43], [0.41, 0.44]] },
+                { id: "BAY_4", points: [[0.60, 0.28], [0.76, 0.28], [0.75, 0.43], [0.59, 0.43]] },
+                { id: "BAY_5", points: [[0.78, 0.28], [0.94, 0.28], [0.93, 0.43], [0.77, 0.43]] },
+                // Lower row (near foreground)
+                { id: "BAY_6", points: [[0.04, 0.54], [0.21, 0.53], [0.20, 0.78], [0.02, 0.79]] },
+                { id: "BAY_7", points: [[0.23, 0.53], [0.40, 0.52], [0.39, 0.78], [0.22, 0.78]] },
+                { id: "BAY_8", points: [[0.42, 0.52], [0.59, 0.52], [0.58, 0.77], [0.41, 0.78]] },
+                { id: "BAY_9", points: [[0.61, 0.52], [0.78, 0.52], [0.77, 0.77], [0.60, 0.77]] },
+                { id: "BAY_10", points: [[0.80, 0.52], [0.97, 0.52], [0.96, 0.77], [0.79, 0.77]] }
+            ];
+        }
+
+        // Coordinate transformations
+        function normToCanvas(pt) {
+            return [pt[0] * canvas.width, pt[1] * canvas.height];
+        }
+
+        function canvasToNorm(pt) {
+            return [
+                Math.max(0, Math.min(1, pt[0] / canvas.width)),
+                Math.max(0, Math.min(1, pt[1] / canvas.height))
+            ];
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return [
+                (e.clientX - rect.left) * scaleX,
+                (e.clientY - rect.top) * scaleY
+            ];
+        }
+
+        // Polygon math
+        function isPointInPolygon(pt, poly) {
+            const x = pt[0], y = pt[1];
+            let inside = false;
+            for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+                const xi = poly[i][0], yi = poly[i][1];
+                const xj = poly[j][0], yj = poly[j][1];
+                const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        function getPolygonCentroid(poly) {
+            let cx = 0, cy = 0;
+            for (const p of poly) {
+                cx += p[0];
+                cy += p[1];
+            }
+            return [cx / poly.length, cy / poly.length];
+        }
+
+        // Render Canvas
+        function redraw() {
+            if (!imageLoaded) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Draw background image
+            ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+
+            // 2. Draw all parking bays
+            bays.forEach((bay, bIndex) => {
+                const isSelected = (bIndex === selectedBayIndex);
+                const pts = bay.points.map(normToCanvas);
+
+                if (pts.length < 3) return;
+
+                // Fill polygon
+                ctx.beginPath();
+                ctx.moveTo(pts[0][0], pts[0][1]);
+                for (let i = 1; i < pts.length; i++) {
+                    ctx.lineTo(pts[i][0], pts[i][1]);
+                }
+                ctx.closePath();
+
+                if (isSelected) {
+                    ctx.fillStyle = "rgba(245, 158, 11, 0.35)"; // Amber highlight
+                    ctx.strokeStyle = "#F59E0B";
+                    ctx.lineWidth = 3;
+                } else {
+                    ctx.fillStyle = "rgba(0, 123, 255, 0.22)"; // Blue fill
+                    ctx.strokeStyle = "#38BDF8";
+                    ctx.lineWidth = 2;
+                }
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw Bay ID badge
+                const centroid = getPolygonCentroid(pts);
+                ctx.font = "bold 13px sans-serif";
+                const label = bay.id || `BAY_${bIndex + 1}`;
+                const textWidth = ctx.measureText(label).width;
+
+                ctx.fillStyle = isSelected ? "#F59E0B" : "rgba(11, 25, 44, 0.85)";
+                ctx.strokeStyle = isSelected ? "#FFFFFF" : "#38BDF8";
+                ctx.lineWidth = 1;
+                const padX = 7, padY = 4;
+                ctx.beginPath();
+                ctx.roundRect(
+                    centroid[0] - textWidth / 2 - padX,
+                    centroid[1] - 8 - padY,
+                    textWidth + padX * 2,
+                    16 + padY * 2,
+                    4
+                );
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = isSelected ? "#070F2B" : "#FFFFFF";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(label, centroid[0], centroid[1]);
+
+                // 3. Draw corner handles (P1, P2, P3, P4)
+                pts.forEach((p, pIndex) => {
+                    const isHovered = (hoveredHandle && hoveredHandle.bayIndex === bIndex && hoveredHandle.pointIndex === pIndex);
+                    const isDragging = (draggingPoint && draggingPoint.bayIndex === bIndex && draggingPoint.pointIndex === pIndex);
+
+                    ctx.beginPath();
+                    const radius = (isHovered || isDragging) ? HANDLE_HOVER_RADIUS : HANDLE_RADIUS;
+                    ctx.arc(p[0], p[1], radius, 0, 2 * Math.PI);
+
+                    if (isDragging) {
+                        ctx.fillStyle = "#10B981"; // Green while dragging
+                        ctx.strokeStyle = "#FFFFFF";
+                    } else if (isHovered) {
+                        ctx.fillStyle = "#F59E0B"; // Amber hover
+                        ctx.strokeStyle = "#FFFFFF";
+                    } else {
+                        ctx.fillStyle = isSelected ? "#F59E0B" : "#007BFF";
+                        ctx.strokeStyle = "#FFFFFF";
+                    }
+                    ctx.lineWidth = 2;
+                    ctx.fill();
+                    ctx.stroke();
+                });
+            });
+
+            // 4. Draw in-progress points if in 'draw' mode
+            if (mode === "draw" && drawPoints.length > 0) {
+                ctx.strokeStyle = "#10B981";
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+
+                ctx.beginPath();
+                ctx.moveTo(drawPoints[0][0], drawPoints[0][1]);
+                for (let i = 1; i < drawPoints.length; i++) {
+                    ctx.lineTo(drawPoints[i][0], drawPoints[i][1]);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                drawPoints.forEach((p, idx) => {
+                    ctx.beginPath();
+                    ctx.arc(p[0], p[1], HANDLE_RADIUS, 0, 2 * Math.PI);
+                    ctx.fillStyle = "#10B981";
+                    ctx.strokeStyle = "#FFFFFF";
+                    ctx.lineWidth = 2;
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Corner number label
+                    ctx.fillStyle = "#FFFFFF";
+                    ctx.font = "bold 11px sans-serif";
+                    ctx.fillText(`P${idx + 1}`, p[0] + 12, p[1] - 8);
+                });
+            }
+
+            updateStatus();
+        }
+
+        function updateStatus() {
+            if (mode === "draw") {
+                statusDot.style.background = "#F59E0B";
+                statusText.innerText = `Click Corner ${drawPoints.length + 1} of 4`;
+            } else {
+                statusDot.style.background = "#10B981";
+                statusText.innerText = `${bays.length} Bays Mapped`;
+            }
+        }
+
+        // Hit tests
+        function findHandleUnderMouse(mouse) {
+            for (let b = 0; b < bays.length; b++) {
+                const pts = bays[b].points.map(normToCanvas);
+                for (let p = 0; p < pts.length; p++) {
+                    const dx = mouse[0] - pts[p][0];
+                    const dy = mouse[1] - pts[p][1];
+                    if (Math.sqrt(dx * dx + dy * dy) <= HANDLE_HOVER_RADIUS + 3) {
+                        return { bayIndex: b, pointIndex: p };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findBayUnderMouse(mouse) {
+            // Check in reverse order so topmost drawn bay is clicked first
+            for (let b = bays.length - 1; b >= 0; b--) {
+                const pts = bays[b].points.map(normToCanvas);
+                if (isPointInPolygon(mouse, pts)) {
+                    return b;
+                }
+            }
+            return -1;
+        }
+
+        // Mouse Events
+        canvas.addEventListener("mousemove", (e) => {
+            const mouse = getMousePos(e);
+
+            if (draggingPoint) {
+                // Dragging a specific corner handle
+                const norm = canvasToNorm(mouse);
+                bays[draggingPoint.bayIndex].points[draggingPoint.pointIndex] = norm;
+                redraw();
+                return;
+            }
+
+            if (draggingBay) {
+                // Dragging entire polygon
+                const dxNorm = (mouse[0] - draggingBay.startMouse[0]) / canvas.width;
+                const dyNorm = (mouse[1] - draggingBay.startMouse[1]) / canvas.height;
+
+                bays[draggingBay.bayIndex].points = draggingBay.originalPoints.map(p => [
+                    Math.max(0, Math.min(1, p[0] + dxNorm)),
+                    Math.max(0, Math.min(1, p[1] + dyNorm))
+                ]);
+                redraw();
+                return;
+            }
+
+            // Normal hover state
+            const handle = findHandleUnderMouse(mouse);
+            if (handle) {
+                canvas.style.cursor = "move";
+                if (!hoveredHandle || hoveredHandle.bayIndex !== handle.bayIndex || hoveredHandle.pointIndex !== handle.pointIndex) {
+                    hoveredHandle = handle;
+                    redraw();
+                }
+            } else {
+                hoveredHandle = null;
+                const bayUnder = findBayUnderMouse(mouse);
+                canvas.style.cursor = (bayUnder !== -1) ? "pointer" : (mode === "draw" ? "crosshair" : "default");
+                redraw();
+            }
+        });
+
+        canvas.addEventListener("mousedown", (e) => {
+            const mouse = getMousePos(e);
+
+            if (mode === "draw") {
+                drawPoints.push(mouse);
+                if (drawPoints.length === 4) {
+                    // Create 4-point quadrilateral bay
+                    const newBayId = `BAY_${bays.length + 1}`;
+                    bays.push({
+                        id: newBayId,
+                        points: drawPoints.map(canvasToNorm)
+                    });
+                    drawPoints = [];
+                    mode = "select";
+                    btnSelect.classList.add("active");
+                    btnDraw.classList.remove("active");
+                    selectedBayIndex = bays.length - 1;
+                }
+                redraw();
+                return;
+            }
+
+            // Check if clicking a corner handle
+            const handle = findHandleUnderMouse(mouse);
+            if (handle) {
+                draggingPoint = handle;
+                selectedBayIndex = handle.bayIndex;
+                redraw();
+                return;
+            }
+
+            // Check if clicking inside a bay
+            const bayUnder = findBayUnderMouse(mouse);
+            if (bayUnder !== -1) {
+                selectedBayIndex = bayUnder;
+                draggingBay = {
+                    bayIndex: bayUnder,
+                    startMouse: mouse,
+                    originalPoints: bays[bayUnder].points.map(p => [p[0], p[1]])
+                };
+                redraw();
+                return;
+            }
+
+            // Clicked empty space: deselect
+            selectedBayIndex = -1;
+            redraw();
+        });
+
+        window.addEventListener("mouseup", () => {
+            if (draggingPoint || draggingBay) {
+                draggingPoint = null;
+                draggingBay = null;
+                redraw();
+            }
+        });
+
+        // Toolbar Button Handlers
+        btnSelect.addEventListener("click", () => {
+            mode = "select";
+            drawPoints = [];
+            btnSelect.classList.add("active");
+            btnDraw.classList.remove("active");
+            redraw();
+        });
+
+        btnDraw.addEventListener("click", () => {
+            mode = "draw";
+            drawPoints = [];
+            selectedBayIndex = -1;
+            btnDraw.classList.add("active");
+            btnSelect.classList.remove("active");
+            redraw();
+        });
+
+        btnDelete.addEventListener("click", () => {
+            if (selectedBayIndex >= 0 && selectedBayIndex < bays.length) {
+                bays.splice(selectedBayIndex, 1);
+                // Re-index remaining bays nicely
+                bays.forEach((b, i) => { b.id = `BAY_${i + 1}`; });
+                selectedBayIndex = -1;
+                redraw();
+            }
+        });
+
+        btnResetTemplate.addEventListener("click", () => {
+            bays = getDefault2RowTemplate();
+            selectedBayIndex = -1;
+            drawPoints = [];
+            mode = "select";
+            btnSelect.classList.add("active");
+            btnDraw.classList.remove("active");
+            redraw();
+            saveLayout(false);
+        });
+
+        btnClear.addEventListener("click", () => {
+            bays = [];
+            selectedBayIndex = -1;
+            drawPoints = [];
+            redraw();
+        });
+
+        function saveLayout(sendNotify = true) {
+            setComponentValue({
+                action: "save",
+                bays: bays,
+                timestamp: Date.now()
+            });
+            if (sendNotify) {
+                const prevText = btnSave.innerHTML;
+                btnSave.innerHTML = "✅ Saved!";
+                btnSave.style.background = "#059669";
+                setTimeout(() => {
+                    btnSave.innerHTML = prevText;
+                    btnSave.style.background = "";
+                }, 1500);
+            }
+        }
+
+        btnSave.addEventListener("click", () => {
+            saveLayout(true);
+        });
+
+        // Keyboard Shortcuts: Delete or Backspace deletes selected bay
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "Delete" || e.key === "Backspace") {
+                if (selectedBayIndex >= 0 && selectedBayIndex < bays.length) {
+                    btnDelete.click();
+                }
+            } else if (e.key === "Escape") {
+                if (mode === "draw") {
+                    btnSelect.click();
+                }
+            }
+        });
+
+        // Streamlit message listener
+        window.addEventListener("message", (event) => {
+            if (event.data.type === "streamlit:render") {
+                const args = event.data.args;
+
+                if (args.initial_bays && (!bays || bays.length === 0)) {
+                    bays = JSON.parse(JSON.stringify(args.initial_bays));
+                }
+
+                if (args.image_b64 && bgImage.src !== args.image_b64) {
+                    bgImage.src = args.image_b64;
+                    bgImage.onload = () => {
+                        imageLoaded = true;
+                        canvas.width = bgImage.naturalWidth || 1280;
+                        canvas.height = bgImage.naturalHeight || 720;
+                        if (!bays || bays.length === 0) {
+                            bays = getDefault2RowTemplate();
+                        }
+                        redraw();
+                        updateFrameHeight();
+                    };
+                } else if (imageLoaded) {
+                    redraw();
+                    updateFrameHeight();
+                }
+            }
+        });
+
+        // Initial component readiness
+        initStreamlit();
+        setTimeout(updateFrameHeight, 300);
+    </script>
+</body>
+</html>
